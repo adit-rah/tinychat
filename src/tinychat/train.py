@@ -213,6 +213,11 @@ def train_run(
     data = batch_iterator(train_path, ctx, tokens_per_step, seed, start_step=step)
     micro = max(1, micro_rows)
     n_micro = max(1, math.ceil(rows / micro))
+    # fp16 autocast on GPU (frozen_config): ~2-3x faster, fits the large tier in 16GB.
+    # No-op on CPU so the test suite is unaffected. Latent weights stay fp32; only the
+    # in-block matmuls run in fp16 — the weight-precision variable is unchanged.
+    use_amp = device == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
     t0 = time.time()
     model.train()
 
@@ -225,11 +230,14 @@ def train_run(
             yb = y[i * micro : (i + 1) * micro].to(device)
             if xb.numel() == 0:
                 continue
-            _, loss = model(xb, yb)
-            (loss / n_micro).backward()
+            with torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
+                _, loss = model(xb, yb)
+            scaler.scale(loss / n_micro).backward()
             step_loss += loss.item() / n_micro
+        scaler.unscale_(opt)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        opt.step()
+        scaler.step(opt)
+        scaler.update()
         sched.step()
         step += 1
         tokens_seen += tokens_per_step
