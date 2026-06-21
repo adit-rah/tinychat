@@ -119,6 +119,19 @@ def _make_scheduler(opt, total_steps, warmup_frac=0.03, final_frac=0.1):
 # --------------------------------------------------------------------------- training
 
 
+def _truncate_csv(csv_path, max_step):
+    """Keep only CSV rows with step <= max_step (used on resume)."""
+    if not os.path.exists(csv_path):
+        return
+    with open(csv_path) as f:
+        reader = csv.DictReader(f)
+        kept = [r for r in reader if int(r["step"]) <= max_step]
+    with open(csv_path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+        w.writeheader()
+        w.writerows(kept)
+
+
 def _append_csv(csv_path, row):
     exists = os.path.exists(csv_path)
     with open(csv_path, "a", newline="") as f:
@@ -192,6 +205,11 @@ def train_run(
         return
 
     csv_path = os.path.join(run_dir, "metrics.csv")
+    # Logging can run ahead of checkpointing (eval_every < ckpt_every). On resume, drop any
+    # CSV rows logged after the checkpoint we restored, so the step column stays strictly
+    # monotonic (never re-logs or restarts a step).
+    if ckpt is not None:
+        _truncate_csv(csv_path, step)
     data = batch_iterator(train_path, ctx, tokens_per_step, seed, start_step=step)
     micro = max(1, micro_rows)
     n_micro = max(1, math.ceil(rows / micro))

@@ -46,6 +46,20 @@ def test_resume_continues_from_last_step(tmp_path, small_cfg, data_paths):
     assert steps2[: len(steps1)] == steps1  # earlier rows preserved
 
 
+def test_resume_drops_csv_rows_ahead_of_checkpoint(tmp_path, small_cfg, data_paths):
+    # Run to 2 steps, then simulate a kill where the CSV got ahead of the checkpoint by
+    # appending a bogus future row. On resume it must be dropped (no duplicate/out-of-order).
+    _common(small_cfg, data_paths, tmp_path, total_tokens=small_cfg.ctx * 2)
+    with open(tmp_path / "metrics.csv", "a") as f:
+        f.write("99,99,0,0,1,0,0,0,0\n")  # a step far ahead of the checkpoint (step 2)
+    assert 99 in _steps(tmp_path / "metrics.csv")
+
+    _common(small_cfg, data_paths, tmp_path, total_tokens=small_cfg.ctx * 4)
+    steps = _steps(tmp_path / "metrics.csv")
+    assert 99 not in steps
+    assert steps == [1, 2, 3, 4]
+
+
 def test_meta_json_has_total_bytes(tmp_path, small_cfg, data_paths):
     import json
     _common(small_cfg, data_paths, tmp_path, total_tokens=small_cfg.ctx * 2)
