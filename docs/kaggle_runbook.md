@@ -1,6 +1,6 @@
 # Kaggle runbook (GPU execution)
 
-The notebook [`notebooks/kaggle_run.ipynb`](../notebooks/kaggle_run.ipynb) runs the GPU-side
+The notebook [`notebooks/tinychat-training.ipynb`](../notebooks/tinychat-training.ipynb) runs the GPU-side
 of the study. This doc is the short companion: what runs, in what order, and the gotchas.
 
 ## What runs (in order)
@@ -29,8 +29,9 @@ of the study. This doc is the short companion: what runs, in what order, and the
 - **Never `pip install -r requirements.txt` on Kaggle.** `requirements.txt` pins `torch>=2.12`
   for the local dev env; installing it on Kaggle upgrades Kaggle's torch (2.10) and breaks the
   preinstalled `transformers` with `ImportError: cannot import name '_maybe_view_chunk_cat'`.
-  The notebook's install cell instead installs only `bitsandbytes` and leaves Kaggle's
-  torch/transformers/datasets/tokenizers stack as shipped. Our code runs on Kaggle's torch.
+  `tinychat.kaggle.install_deps()` (called by `bootstrap()`) instead installs only
+  `bitsandbytes` and leaves Kaggle's torch/transformers/datasets/tokenizers stack as shipped.
+  Our code runs on Kaggle's torch.
 - **Calibration is a gate, not a formality.** Before trusting any capability claim, confirm in
   `eval/calibration.md`: good refs clear ~4.0, garbage well below, and **intra-judge std <
   good−bad gap**. If the judge is too noisy, swap/upgrade it (an Anthropic-API pass via
