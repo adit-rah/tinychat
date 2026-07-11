@@ -6,6 +6,7 @@ deterministic given its seed — apples-to-apples across the sweep depends on it
 
 from __future__ import annotations
 
+import os
 from typing import Iterable, Iterator
 
 import numpy as np
@@ -18,19 +19,32 @@ def build_token_memmap(texts: Iterable[str], tokenizer, out_path: str) -> int:
     """Tokenize `texts`, append `<|eos|>` after each, write uint16 to `out_path`.
 
     Returns the total number of tokens written. Writes incrementally so the full
-    corpus need not fit in memory.
+    corpus need not fit in memory. Writes to a temp file and renames on completion, so
+    an interrupted build never leaves a truncated file that callers (which use the
+    file's existence as the "already built" check) would silently accept.
     """
     eos = tokenizer.token_to_id("<|eos|>")
     if eos is None:
         eos = EOS_ID
     n = 0
-    with open(out_path, "wb") as f:
-        for text in texts:
-            ids = tokenizer.encode(text).ids
-            ids.append(eos)
-            arr = np.asarray(ids, dtype=np.uint16)
-            f.write(arr.tobytes())
-            n += arr.size
+    docs = 0
+    tmp_path = out_path + ".tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            for text in texts:
+                ids = tokenizer.encode(text).ids
+                ids.append(eos)
+                arr = np.asarray(ids, dtype=np.uint16)
+                f.write(arr.tobytes())
+                n += arr.size
+                docs += 1
+                if docs % 200_000 == 0:
+                    print(f"tokenized {docs:,} docs, {n:,} tokens", flush=True)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+    os.replace(tmp_path, out_path)
     return n
 
 

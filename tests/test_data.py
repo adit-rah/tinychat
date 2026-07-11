@@ -1,4 +1,7 @@
+import os
+
 import numpy as np
+import pytest
 
 from tinychat.data import batch_iterator, build_token_memmap
 from tinychat.tokenizer import load_tokenizer, train_tokenizer
@@ -24,6 +27,21 @@ def test_memmap_dtype_and_range(tmp_path):
     assert arr.dtype == np.uint16
     assert arr.shape[0] == n
     assert int(arr.max()) < 512  # all token ids fit the vocab
+
+
+def test_interrupted_build_leaves_no_output_file(tmp_path):
+    # A build killed mid-corpus must not leave a truncated file at out_path — callers use
+    # the file's existence as the "already built" check.
+    tok = _make_tokenizer(tmp_path)
+    out = str(tmp_path / "data.bin")
+
+    def texts_then_crash():
+        yield CORPUS[0]
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        build_token_memmap(texts_then_crash(), tok, out)
+    assert not os.path.exists(out)
 
 
 def test_batch_iterator_deterministic(tmp_path):
