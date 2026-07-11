@@ -204,6 +204,9 @@ def train_run(
         open(os.path.join(run_dir, "DONE"), "w").close()
         return
 
+    print(f"=== {os.path.basename(run_dir)} | {precision} | {n_params:,} params | "
+          f"{meta['total_bytes']:,} bytes | step {step}/{total_steps} ===", flush=True)
+
     csv_path = os.path.join(run_dir, "metrics.csv")
     # Logging can run ahead of checkpointing (eval_every < ckpt_every). On resume, drop any
     # CSV rows logged after the checkpoint we restored, so the step column stays strictly
@@ -219,6 +222,7 @@ def train_run(
     use_amp = device == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
     t0 = time.time()
+    session_start_step = step  # throughput/ETA measured on this session only
     model.train()
 
     while step < total_steps:
@@ -234,6 +238,13 @@ def train_run(
                 _, loss = model(xb, yb)
             scaler.scale(loss / n_micro).backward()
             step_loss += loss.item() / n_micro
+        # Collapse guard (spec §12): fail loudly instead of silently training on NaN.
+        # A transient fp16 overflow is recoverable — resuming replays from the checkpoint.
+        if not math.isfinite(step_loss):
+            raise RuntimeError(
+                f"{os.path.basename(run_dir)}: non-finite train loss at step {step + 1} "
+                f"({step_loss}) — run collapsed; re-run to retry from the last checkpoint"
+            )
         scaler.unscale_(opt)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         scaler.step(opt)
@@ -245,6 +256,12 @@ def train_run(
         is_last = step >= total_steps
         if step % eval_every == 0 or is_last:
             val_ppl = evaluate_ppl(model, val_path, ctx, eval_batches)
+            elapsed = time.time() - t0
+            tok_s = (step - session_start_step) * tokens_per_step / max(elapsed, 1e-9)
+            eta_h = (total_steps - step) * tokens_per_step / max(tok_s, 1e-9) / 3600
+            print(f"step {step}/{total_steps} | train {step_loss:.3f} | "
+                  f"val_ppl {val_ppl:.4g} | {tok_s / 1e3:.1f}k tok/s | eta {eta_h:.2f}h",
+                  flush=True)
             _append_csv(csv_path, {
                 "step": step,
                 "tokens_seen": tokens_seen,
