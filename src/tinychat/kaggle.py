@@ -149,6 +149,31 @@ def calibrate(ctx: Ctx, use_33m: bool = False, repeats: int = 3) -> None:
     print(open(os.path.join(ctx.repo_dir, "eval/calibration.md")).read())
 
 
+def calibrate_33m(ctx: Ctx) -> None:
+    """Append the spec §8 reference (b) — TinyStories-33M completions — to calibration.md.
+
+    For when calibrate() ran with use_33m=False: scores the 200 frozen prefixes completed
+    by the published 33M model and appends the mediocre line. Pre-sweep only — it locates
+    where achievable small-model quality sits relative to the 4.0 gate.
+    """
+    import importlib.util
+    import statistics
+
+    from eval.judge import LocalQwenJudge
+
+    spec = importlib.util.spec_from_file_location(
+        "run_calibration", os.path.join(ctx.repo_dir, "scripts/run_calibration.py"))
+    cal = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cal)
+
+    judge = LocalQwenJudge()
+    med = cal.score_set(judge, cal._load_prefixes(), _tinystories_33m_fn(), label="33M")
+    line = f"- mediocre (TinyStories-33M) mean: {statistics.fmean(med):.3f}  (addendum)"
+    with open(os.path.join(ctx.repo_dir, "eval/calibration.md"), "a") as f:
+        f.write(line + "\n")
+    print(line)
+
+
 def evaluate_all(ctx: Ctx) -> None:
     """Load the judge once and score every finished run that lacks an eval.json."""
     from eval.judge import LocalQwenJudge
