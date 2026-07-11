@@ -259,9 +259,9 @@ def train_run(
             elapsed = time.time() - t0
             tok_s = (step - session_start_step) * tokens_per_step / max(elapsed, 1e-9)
             eta_h = (total_steps - step) * tokens_per_step / max(tok_s, 1e-9) / 3600
-            print(f"step {step}/{total_steps} | train {step_loss:.3f} | "
-                  f"val_ppl {val_ppl:.4g} | {tok_s / 1e3:.1f}k tok/s | eta {eta_h:.2f}h",
-                  flush=True)
+            print(f"{os.path.basename(run_dir)} | step {step}/{total_steps} | "
+                  f"train {step_loss:.3f} | val_ppl {val_ppl:.4g} | "
+                  f"{tok_s / 1e3:.1f}k tok/s | eta {eta_h:.2f}h", flush=True)
             _append_csv(csv_path, {
                 "step": step,
                 "tokens_seen": tokens_seen,
