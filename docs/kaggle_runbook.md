@@ -26,6 +26,10 @@ of the study. This doc is the short companion: what runs, in what order, and the
 - Cap a session by setting `ONLY` in the sweep cell to a subset of the matrix.
 
 ## Gotchas
+- **Pulling code fixes mid-session requires a kernel restart.** The sync cell updates files
+  on disk, but Python's import cache keeps already-imported modules — and a crashed cell's
+  traceback pins any loaded model in GPU memory. Restart the session (files in
+  `/kaggle/working` survive with persistence on), then re-run the sync cell.
 - **Run interactively (editor draft session), NOT "Save & Run All".** A commit/batch run
   (papermill) starts from a clean disk every time — no persisted `runs/`, no HF cache, so it
   re-downloads everything and can't resume — and it aborts the whole notebook on the first

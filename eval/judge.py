@@ -67,16 +67,21 @@ class LocalQwenJudge:
 
     def __init__(self, model_id: str = "Qwen/Qwen2.5-7B-Instruct", four_bit: bool = True,
                  max_new_tokens: int = 32):
+        import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.template = load_judge_prompt()
         self.max_new_tokens = max_new_tokens
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-        kwargs = {"device_map": "auto"}
+        # Pin fp16 everywhere: without an explicit dtype the non-quantized modules (and
+        # load-time staging) can materialize at fp32 and OOM a 16GB card.
+        kwargs = {"device_map": "auto", "dtype": torch.float16}
         if four_bit:
             from transformers import BitsAndBytesConfig
 
-            kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True)
+            kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16
+            )
         self.model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
 
     def score(self, prefix: str, completion: str) -> dict:
