@@ -30,6 +30,14 @@ research metric — it is the deployment cost.
 4. **The page** — single static HTML: type a story opening, the model continues it.
    Honest framing: a story completer, not a chatbot (a chat-tuned variant is phase 3,
    needs dialogue-format fine-tuning data).
+5. **Model switcher (decided 2026-07-12):** the page offers *all* sweep models, not just
+   the winner — an interactive frontier. Packed models ship as GitHub Release assets on a
+   tagged release; the page discovers them via the `releases/latest` API (CORS-enabled, no
+   backend, re-tag to update), lazy-fetches on selection with a progress bar (the byte size
+   is deliberately visible UX), and caches via the Cache API. A `manifest.json` asset carries
+   per-model bytes / val PPL / judge mean / gate verdict; the gate-passing smallest model is
+   the preselected default. Consequence for the packer: the file format must be
+   self-describing (config header), so one JS loader handles every tier/precision.
 
 ## Constraint phase 2 imposes on phase 1
 
