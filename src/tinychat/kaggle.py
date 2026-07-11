@@ -125,9 +125,13 @@ def _tinystories_33m_fn():
     m = AutoModelForCausalLM.from_pretrained(m_id).to("cuda").eval()
 
     def fn(item):
-        ids = m_tok(item["prefix"], return_tensors="pt").input_ids.to("cuda")
-        out = m.generate(ids, max_new_tokens=200, do_sample=False)
-        return m_tok.decode(out[0, ids.shape[1]:], skip_special_tokens=True)
+        enc = m_tok(item["prefix"], return_tensors="pt").to("cuda")
+        # explicit attention_mask + pad_token_id: silences the per-call transformers
+        # warning spam (GPT-Neo defines no pad token); output is identical for batch-of-1.
+        out = m.generate(**enc, max_new_tokens=200, do_sample=False,
+                         pad_token_id=m_tok.eos_token_id)
+        n_in = enc["input_ids"].shape[1]
+        return m_tok.decode(out[0, n_in:], skip_special_tokens=True)
 
     return fn
 
