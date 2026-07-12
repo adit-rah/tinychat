@@ -2,6 +2,11 @@ import os
 
 import tinychat.sweep as sweep
 
+# The conftest `data_paths` fixture provides real (tiny) train/val memmaps for the
+# end-to-end parallel test; the fast kwargs keep a real tiny-tier run to a few CPU steps.
+FAST_KWARGS = dict(total_tokens=1024, tokens_per_step=512, eval_every=1000,
+                   eval_batches=2, ckpt_every=1000)  # ctx is frozen at 512 -> 1 row/step
+
 
 def test_matrix_is_4x2x2():
     m = sweep.sweep_matrix()
@@ -44,3 +49,51 @@ def test_run_sweep_calls_eval_after_train(tmp_path, monkeypatch):
     sweep.run_sweep(str(tmp_path), "t.bin", "v.bin",
                     only=[("tiny", "fp16", 0)], eval_fn=evaled.append)
     assert len(evaled) == 1 and evaled[0].endswith("tiny_fp16_0")
+
+
+def test_claim_run_is_exclusive(tmp_path):
+    run_dir = str(tmp_path / "tiny_fp16_0")
+    assert sweep.claim_run(run_dir) is True
+    assert sweep.claim_run(run_dir) is False  # second claimant loses
+
+
+def test_run_sweep_with_claim_skips_claimed_runs(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(sweep, "train_run",
+                        lambda cfg, prec, seed, run_dir, *a, **k: calls.append(run_dir))
+
+    claimed = sweep.run_dir_for(str(tmp_path), "tiny", "fp16", 0)
+    sweep.claim_run(claimed)  # another worker holds this run
+
+    sweep.run_sweep(str(tmp_path), "t.bin", "v.bin", claim=True)
+    assert claimed not in calls
+    assert len(calls) == 15
+
+
+def test_run_sweep_parallel_trains_all_and_clears_stale_claims(tmp_path, data_paths):
+    train_path, val_path = data_paths
+    runs_root = str(tmp_path / "runs")
+    only = [("tiny", "fp16", 0), ("tiny", "fp16", 1)]
+
+    # A CLAIM left behind by a killed session must not block the run.
+    stale = sweep.run_dir_for(runs_root, "tiny", "fp16", 0)
+    sweep.claim_run(stale)
+
+    sweep.run_sweep_parallel(runs_root, train_path, val_path, only=only,
+                             workers=2, poll_s=1, **FAST_KWARGS)
+
+    for tier, precision, seed in only:
+        run_dir = sweep.run_dir_for(runs_root, tier, precision, seed)
+        assert os.path.exists(os.path.join(run_dir, "DONE")), run_dir
+    assert os.path.exists(os.path.join(runs_root, "worker0.log"))
+    assert os.path.exists(os.path.join(runs_root, "worker1.log"))
+
+
+def test_run_sweep_parallel_raises_on_worker_failure(tmp_path, data_paths):
+    import pytest
+
+    # Nonexistent data paths make both workers crash; the parent must surface it.
+    with pytest.raises(RuntimeError, match="worker"):
+        sweep.run_sweep_parallel(str(tmp_path / "runs"), "missing.bin", "missing.bin",
+                                 only=[("tiny", "fp16", 0)], workers=2, poll_s=1,
+                                 **FAST_KWARGS)

@@ -13,7 +13,9 @@ of the study. This doc is the short companion: what runs, in what order, and the
 6. **Writeup** — fill `docs/writeup.md`.
 
 ## Kaggle settings (right-hand panel)
-- **Accelerator:** P100 (single 16GB) or T4. The harness uses one GPU.
+- **Accelerator:** **T4×2** — the sweep cell trains two runs in parallel, one worker
+  subprocess per GPU (Kaggle bills session wall-clock regardless of GPU count, so this halves
+  quota per run). P100 (single GPU) works too; the cell falls back to sequential training.
 - **Persistence:** *Files only* — keeps `/kaggle/working/runs` across sessions so the sweep
   resumes instead of restarting.
 - **Internet:** On (pip + TinyStories + Qwen judge downloads).
@@ -22,7 +24,9 @@ of the study. This doc is the short companion: what runs, in what order, and the
 - Sessions cap at 12h; quota ~30 GPU-h/week. Full sweep ≈ 10–20 GPU-h (~2 sessions).
 - The sweep is **idempotent**: each run checkpoints (`ckpt_latest.pt`) and finished runs carry
   a `DONE` marker that is skipped. If a session times out, just re-run the sweep cell next
-  session — it continues from the last checkpoint. No run exceeds ~2h, so none is un-resumable.
+  session — it continues from the last checkpoint. Measured throughput (T4, 500M tokens/run):
+  tiny ~200k tok/s (~40min), medium ternary ~60k (~2.3h), large fp16 ~41k (~3.4h), large
+  ternary ~25–30k (~5h) — the large tier only fits a 12h session with both GPUs working.
 - Cap a session by setting `ONLY` in the sweep cell to a subset of the matrix.
 
 ## Gotchas
@@ -57,7 +61,9 @@ of the study. This doc is the short companion: what runs, in what order, and the
   plot reads them.
 
 ## Monitoring
-The sweep cell prints a banner per run (params, bytes, resume step) and a progress line at
+Each worker writes its full output to `runs/worker{i}.log`; the sweep cell echoes each
+worker's latest line (prefixed `[gpu0]`/`[gpu1]`) once a minute. Per run the log has a banner
+(params, bytes, resume step) and a progress line at
 every eval interval (250 steps): train loss, val PPL, tokens/sec, session ETA. Watch the
 first lines of each tier for throughput — if the ETA doesn't fit the session, cap it with
 `ONLY`. A non-finite train loss (ternary collapse, spec §12) **raises immediately** rather
