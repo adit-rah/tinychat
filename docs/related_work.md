@@ -3,6 +3,19 @@
 Where this project sits in the literature, from a web probe on 2026-07-13. For the writeup's
 related-work section; re-verify citations before publishing.
 
+## Provenance — what was known at design time vs found after
+
+**Design-time inputs (pre-registration context):** the TinyStories paper, the BitNet b1.58
+paper, and TernaryLM — the last indirectly, via the frozen spec (§2 cites its ~2× PPL penalty
+as the motivating single-point comparison). Everything in the design (tiers, gate, byte
+accounting) traces to these three.
+
+**Found after the fact (2026-07-13 probe, mid-sweep, before any eval results):** ParetoQ, the
+billion-scale quantization scaling-law literature, and the llama2.c/tinyllamas browser ports.
+These inform the writeup's positioning and the post-v1 levers below, but influenced no frozen
+design decision — the sweep was already running when they were found. State this in the
+writeup; it is a feature of the pre-registration story, not a gap.
+
 ## The four adjacent clusters
 
 1. **Emergence at tiny scale — TinyStories** (Eldan & Li, arXiv:2305.07759). Established
