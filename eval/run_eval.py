@@ -24,8 +24,8 @@ PREFIXES = os.path.join(ROOT, "eval", "prefixes.jsonl")
 TOKENIZER = os.path.join(ROOT, "artifacts", "tokenizer", "tokenizer.json")
 
 
-def load_prefixes(path: str = PREFIXES) -> list[dict]:
-    with open(path) as f:
+def load_prefixes(path: str | None = None) -> list[dict]:
+    with open(path or PREFIXES) as f:  # resolved at call time, not def time
         return [json.loads(line) for line in f if line.strip()]
 
 
@@ -46,8 +46,20 @@ def load_model_from_run(run_dir: str):
     return model
 
 
-def evaluate_run(run_dir: str, judge=None, max_new_tokens: int = 200) -> dict:
+def _generate(model, tok, prefix, **kwargs):
+    """Indirection over tinychat.generate.generate (patchable in tests)."""
     from tinychat.generate import generate
+
+    return generate(model, tok, prefix, **kwargs)
+
+
+def evaluate_run(run_dir: str, judge=None, max_new_tokens: int = 200,
+                 **decode_kwargs) -> dict:
+    """Judge one run. `decode_kwargs` (temperature/top_k) pass through to `generate`.
+
+    eval.json stores, per prefix, the completion text and the judge's raw output —
+    zeros must be auditable (real verdict vs parse failure), so the evidence is kept.
+    """
     from tinychat.tokenizer import load_tokenizer
 
     if judge is None:
@@ -62,11 +74,14 @@ def evaluate_run(run_dir: str, judge=None, max_new_tokens: int = 200) -> dict:
     per_prefix = []
     completion_scores = []
     for item in prefixes:
-        completion = generate(model, tok, item["prefix"], max_new_tokens=max_new_tokens,
-                              seed=0)
-        axes = judge.score(item["prefix"], completion)
-        score = per_completion_score(axes)
-        per_prefix.append({"id": item["id"], "axes": axes, "score": score})
+        completion = _generate(model, tok, item["prefix"],
+                               max_new_tokens=max_new_tokens, seed=0, **decode_kwargs)
+        scored = dict(judge.score(item["prefix"], completion))
+        raw = scored.pop("raw", "")
+        parsed = scored.pop("parsed", True)
+        score = per_completion_score(scored)
+        per_prefix.append({"id": item["id"], "completion": completion, "axes": scored,
+                           "parsed": parsed, "raw": raw, "score": score})
         completion_scores.append(score)
 
     mean, half = mean_and_ci(completion_scores)
@@ -76,6 +91,8 @@ def evaluate_run(run_dir: str, judge=None, max_new_tokens: int = 200) -> dict:
         "ci_low": mean - half,
         "ci_high": mean + half,
         "n": len(completion_scores),
+        "n_parse_failures": sum(1 for r in per_prefix if not r["parsed"]),
+        "decode_kwargs": {"max_new_tokens": max_new_tokens, **decode_kwargs},
         "per_prefix": per_prefix,
     }
     with open(os.path.join(run_dir, "eval.json"), "w") as f:

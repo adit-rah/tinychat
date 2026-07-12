@@ -128,8 +128,14 @@ def bootstrap(repo_dir: str | None = None, work: str = "/kaggle/working",
     return ctx
 
 
-def _tinystories_33m_fn():
-    """Completion fn for the optional TinyStories-33M mediocre reference."""
+def _tinystories_33m_fn(sampled: bool = False):
+    """Completion fn for the optional TinyStories-33M mediocre reference.
+
+    `sampled=True` mirrors the sweep models' eval decoding (temperature 1.0, top_k 40)
+    instead of greedy, so the reference locates the gate under the same decoding policy
+    the models are judged with.
+    """
+    import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     m_id = "roneneldan/TinyStories-33M"
@@ -138,10 +144,14 @@ def _tinystories_33m_fn():
 
     def fn(item):
         enc = m_tok(item["prefix"], return_tensors="pt").to("cuda")
+        gen_kwargs = ({"do_sample": True, "temperature": 1.0, "top_k": 40}
+                      if sampled else {"do_sample": False})
+        if sampled:
+            torch.manual_seed(0)
         # explicit attention_mask + pad_token_id: silences the per-call transformers
         # warning spam (GPT-Neo defines no pad token); output is identical for batch-of-1.
-        out = m.generate(**enc, max_new_tokens=200, do_sample=False,
-                         pad_token_id=m_tok.eos_token_id)
+        out = m.generate(**enc, max_new_tokens=200, pad_token_id=m_tok.eos_token_id,
+                         **gen_kwargs)
         n_in = enc["input_ids"].shape[1]
         return m_tok.decode(out[0, n_in:], skip_special_tokens=True)
 
@@ -165,12 +175,14 @@ def calibrate(ctx: Ctx, use_33m: bool = False, repeats: int = 3) -> None:
     print(open(os.path.join(ctx.repo_dir, "eval/calibration.md")).read())
 
 
-def calibrate_33m(ctx: Ctx) -> None:
+def calibrate_33m(ctx: Ctx, sampled: bool = False, n_prefixes: int | None = None) -> None:
     """Append the spec §8 reference (b) — TinyStories-33M completions — to calibration.md.
 
-    For when calibrate() ran with use_33m=False: scores the 200 frozen prefixes completed
-    by the published 33M model and appends the mediocre line. Pre-sweep only — it locates
-    where achievable small-model quality sits relative to the 4.0 gate.
+    For when calibrate() ran with use_33m=False: scores the frozen prefixes completed
+    by the published 33M model and appends the mediocre line. `sampled=True` decodes with
+    the sweep models' eval policy (temp 1.0 / top_k 40) instead of greedy — it measures how
+    much of the gap between a reference model and the gate is the decoding policy, not the
+    model. `n_prefixes` caps the set for a quick diagnostic pass.
     """
     import importlib.util
     import statistics
@@ -183,15 +195,23 @@ def calibrate_33m(ctx: Ctx) -> None:
     spec.loader.exec_module(cal)
 
     judge = LocalQwenJudge()
-    med = cal.score_set(judge, cal._load_prefixes(), _tinystories_33m_fn(), label="33M")
-    line = f"- mediocre (TinyStories-33M) mean: {statistics.fmean(med):.3f}  (addendum)"
+    prefixes = cal._load_prefixes()[:n_prefixes]
+    med = cal.score_set(judge, prefixes, _tinystories_33m_fn(sampled=sampled),
+                        label="33M-sampled" if sampled else "33M")
+    decode = "sampled temp1.0/topk40" if sampled else "greedy"
+    line = (f"- mediocre (TinyStories-33M, {decode}, n={len(prefixes)}) mean: "
+            f"{statistics.fmean(med):.3f}  (addendum)")
     with open(os.path.join(ctx.repo_dir, "eval/calibration.md"), "a") as f:
         f.write(line + "\n")
     print(line)
 
 
-def evaluate_all(ctx: Ctx) -> None:
-    """Load the judge once and score every finished run that lacks an eval.json."""
+def evaluate_all(ctx: Ctx, **eval_kwargs) -> None:
+    """Load the judge once and score every finished run that lacks an eval.json.
+
+    `eval_kwargs` (e.g. temperature/top_k) pass through to `evaluate_run` → `generate`,
+    so the eval decoding policy is settable from the notebook without a code push.
+    """
     from eval.judge import LocalQwenJudge
     from eval.run_eval import evaluate_run
 
@@ -206,9 +226,10 @@ def evaluate_all(ctx: Ctx) -> None:
         if os.path.exists(os.path.join(rd, "eval.json")):
             print("already evaluated:", os.path.basename(rd))
             continue
-        r = evaluate_run(rd, judge=judge)
+        r = evaluate_run(rd, judge=judge, **eval_kwargs)
         print(os.path.basename(rd), "mean", round(r["mean"], 3),
-              f"CI [{r['ci_low']:.3f}, {r['ci_high']:.3f}]")
+              f"CI [{r['ci_low']:.3f}, {r['ci_high']:.3f}]",
+              f"parse_failures {r['n_parse_failures']}")
 
 
 def save_deliverables(ctx: Ctx, out: str = "/kaggle/working/deliverables") -> str:

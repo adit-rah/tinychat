@@ -37,7 +37,9 @@ def parse_judge_json(text: str) -> dict:
     """Extract {grammar, consistency, completes} from messy judge output; clamp to 0..5.
 
     Tolerates surrounding prose, code fences, and trailing tokens by scanning for the first
-    JSON object. Missing axes default to 0.
+    JSON object. Missing axes default to 0. `parsed` is False when no scoreable JSON was
+    found at all (e.g. truncated output) — those zeros are failures, not verdicts, and
+    eval.json counts them separately.
     """
     obj = None
     for match in re.finditer(r"\{[^{}]*\}", text, re.S):
@@ -48,9 +50,9 @@ def parse_judge_json(text: str) -> dict:
         if any(a in cand for a in AXES):
             obj = cand
             break
-    if obj is None:
-        obj = {}
-    return {a: _clamp(obj.get(a, 0)) for a in AXES}
+    scores = {a: _clamp((obj or {}).get(a, 0)) for a in AXES}
+    scores["parsed"] = obj is not None
+    return scores
 
 
 def per_completion_score(scores: dict) -> float:
@@ -66,7 +68,7 @@ class LocalQwenJudge:
     """Frozen default: Qwen2.5-7B-Instruct via transformers (4-bit on GPU by default)."""
 
     def __init__(self, model_id: str = "Qwen/Qwen2.5-7B-Instruct", four_bit: bool = True,
-                 max_new_tokens: int = 32):
+                 max_new_tokens: int = 64):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -96,7 +98,7 @@ class LocalQwenJudge:
                                   do_sample=False)
         n_in = inputs["input_ids"].shape[1]
         text = self.tokenizer.decode(out[0, n_in:], skip_special_tokens=True)
-        return parse_judge_json(text)
+        return {**parse_judge_json(text), "raw": text}
 
 
 class AnthropicJudge:
@@ -115,4 +117,4 @@ class AnthropicJudge:
             model=self.model, max_tokens=64,
             messages=[{"role": "user", "content": prompt}],
         )
-        return parse_judge_json(msg.content[0].text)
+        return {**parse_judge_json(msg.content[0].text), "raw": msg.content[0].text}

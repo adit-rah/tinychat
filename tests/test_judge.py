@@ -20,22 +20,36 @@ class FakeJudge:
 
 def test_parse_clean_json():
     s = '{"grammar": 5, "consistency": 4, "completes": 3}'
-    assert parse_judge_json(s) == {"grammar": 5, "consistency": 4, "completes": 3}
+    assert parse_judge_json(s) == {"grammar": 5, "consistency": 4, "completes": 3,
+                                   "parsed": True}
 
 
 def test_parse_messy_text_with_prose_and_fence():
     s = 'Sure! Here is my rating:\n```json\n{"grammar": 4, "consistency": 5, "completes": 5}\n```\nThanks.'
-    assert parse_judge_json(s) == {"grammar": 4, "consistency": 5, "completes": 5}
+    assert parse_judge_json(s) == {"grammar": 4, "consistency": 5, "completes": 5,
+                                   "parsed": True}
 
 
 def test_parse_clamps_out_of_range():
     s = '{"grammar": 9, "consistency": -2, "completes": 3}'
-    assert parse_judge_json(s) == {"grammar": 5, "consistency": 0, "completes": 3}
+    assert parse_judge_json(s) == {"grammar": 5, "consistency": 0, "completes": 3,
+                                   "parsed": True}
 
 
 def test_parse_missing_axis_defaults_zero():
     s = '{"grammar": 5}'
-    assert parse_judge_json(s) == {"grammar": 5, "consistency": 0, "completes": 0}
+    assert parse_judge_json(s) == {"grammar": 5, "consistency": 0, "completes": 0,
+                                   "parsed": True}
+
+
+def test_parse_failure_is_flagged_not_silent():
+    # No JSON at all, and JSON truncated before the closing brace (the max_new_tokens
+    # failure mode): both must come back parsed=False so zeros are auditable.
+    for s in ("I cannot rate this story.",
+              'Here is my rating:\n{"grammar": 4, "consistency": 5, "compl'):
+        out = parse_judge_json(s)
+        assert out["parsed"] is False
+        assert all(out[a] == 0 for a in AXES)
 
 
 def test_fill_frozen_prompt_survives_json_example():
@@ -74,10 +88,13 @@ def test_local_judge_score_handles_v5_batchencoding():
     # Regression: generate(BatchEncoding) raised AttributeError on transformers 5.x.
     j = LocalQwenJudge.__new__(LocalQwenJudge)  # skip __init__ (no model download)
     j.template = load_judge_prompt()
-    j.max_new_tokens = 32
+    j.max_new_tokens = 64
     j.tokenizer = FakeV5Tokenizer()
     j.model = FakeModel()
-    assert j.score("Once", "upon a time") == {"grammar": 4, "consistency": 3, "completes": 5}
+    out = j.score("Once", "upon a time")
+    assert {a: out[a] for a in AXES} == {"grammar": 4, "consistency": 3, "completes": 5}
+    assert out["parsed"] is True
+    assert out["raw"] == '{"grammar": 4, "consistency": 3, "completes": 5}'
 
 
 def test_fake_judge_protocol_shape():
