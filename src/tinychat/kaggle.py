@@ -39,6 +39,18 @@ def _pip(args: list[str]) -> None:
 def install_deps() -> None:
     """Install only what Kaggle lacks. Never torch/transformers — upgrading Kaggle's torch
     breaks its preinstalled transformers (ImportError: _maybe_view_chunk_cat)."""
+    # Some Kaggle images pair torch with a triton whose layout torch doesn't expect, so any
+    # lazy `import torch._dynamo` (e.g. optimizer construction) dies with
+    # AttributeError: module 'triton.backends' has no attribute 'compiler'. We never use
+    # triton (eager only), and torch skips its triton block when the package is absent —
+    # probe in a subprocess (before torch is imported here) and drop triton if broken.
+    probe = subprocess.run([sys.executable, "-c", "import torch._dynamo"],
+                           capture_output=True)
+    if probe.returncode != 0:
+        print("torch._dynamo import broken — uninstalling triton (unused; eager-only)")
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-q", "-y", "triton"],
+                       check=True)
+        subprocess.run([sys.executable, "-c", "import torch._dynamo"], check=True)
     _pip(["bitsandbytes"])  # 4-bit judge
     for mod in ("tokenizers", "datasets", "transformers", "accelerate"):
         try:
