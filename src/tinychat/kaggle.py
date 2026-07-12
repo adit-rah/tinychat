@@ -128,17 +128,18 @@ def bootstrap(repo_dir: str | None = None, work: str = "/kaggle/working",
     return ctx
 
 
-def _tinystories_33m_fn(sampled: bool = False):
-    """Completion fn for the optional TinyStories-33M mediocre reference.
+def _tinystories_ref_fn(model_id: str = "roneneldan/TinyStories-33M",
+                        sampled: bool = False):
+    """Completion fn for a published TinyStories reference model (33M, 1M, ...).
 
-    `sampled=True` mirrors the sweep models' eval decoding (temperature 1.0, top_k 40)
-    instead of greedy, so the reference locates the gate under the same decoding policy
-    the models are judged with.
+    `sampled=True` mirrors the sweep models' original eval decoding (temperature 1.0,
+    top_k 40) instead of greedy, so the reference locates the gate under the same
+    decoding policy the models are judged with.
     """
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    m_id = "roneneldan/TinyStories-33M"
+    m_id = model_id
     m_tok = AutoTokenizer.from_pretrained(m_id)
     m = AutoModelForCausalLM.from_pretrained(m_id).to("cuda").eval()
 
@@ -170,22 +171,24 @@ def calibrate(ctx: Ctx, use_33m: bool = False, repeats: int = 3) -> None:
     spec.loader.exec_module(cal)
 
     judge = LocalQwenJudge()
-    model33m_fn = _tinystories_33m_fn() if use_33m else None
+    model33m_fn = _tinystories_ref_fn() if use_33m else None
     cal.main(judge=judge, model33m_fn=model33m_fn, repeats=repeats)
     print(open(os.path.join(ctx.repo_dir, "eval/calibration.md")).read())
 
 
-def calibrate_33m(ctx: Ctx, sampled: bool = False, n_prefixes: int | None = None) -> None:
-    """Append the spec §8 reference (b) — TinyStories-33M completions — to calibration.md.
+def calibrate_reference(ctx: Ctx, model_id: str = "roneneldan/TinyStories-33M",
+                        sampled: bool = False, n_prefixes: int | None = None) -> None:
+    """Score a published TinyStories reference model through the frozen judge pipeline
+    and append the result to calibration.md.
 
-    For when calibrate() ran with use_33m=False: scores the frozen prefixes completed
-    by the published 33M model and appends the mediocre line. `sampled=True` decodes with
-    the sweep models' eval policy (temp 1.0 / top_k 40) instead of greedy — it measures how
-    much of the gap between a reference model and the gate is the decoding policy, not the
-    model. `n_prefixes` caps the set for a quick diagnostic pass.
+    Used for spec §8 reference (b) (33M) and for the reference-anchored secondary
+    capability line (TinyStories-1M, greedy — see the frozen block in calibration.md).
+    `sampled=True` decodes with the original sweep eval policy (temp 1.0 / top_k 40)
+    instead of greedy — it measures how much of the gap between a reference model and the
+    gate is the decoding policy, not the model. `n_prefixes` caps the set for a quick
+    diagnostic pass; the anchor itself must use the full 200.
     """
     import importlib.util
-    import statistics
 
     from eval.judge import LocalQwenJudge
 
@@ -196,14 +199,20 @@ def calibrate_33m(ctx: Ctx, sampled: bool = False, n_prefixes: int | None = None
 
     judge = LocalQwenJudge()
     prefixes = cal._load_prefixes()[:n_prefixes]
-    med = cal.score_set(judge, prefixes, _tinystories_33m_fn(sampled=sampled),
-                        label="33M-sampled" if sampled else "33M")
+    short = model_id.split("/")[-1]
     decode = "sampled temp1.0/topk40" if sampled else "greedy"
-    line = (f"- mediocre (TinyStories-33M, {decode}, n={len(prefixes)}) mean: "
-            f"{statistics.fmean(med):.3f}  (addendum)")
+    med = cal.score_set(judge, prefixes, _tinystories_ref_fn(model_id, sampled=sampled),
+                        label=f"{short}-{'sampled' if sampled else 'greedy'}")
+    mean, half = cal.mean_and_ci(med)
+    line = (f"- reference ({short}, {decode}, n={len(prefixes)}) mean: "
+            f"{mean:.3f}  (95% CI ±{half:.3f})  (addendum)")
     with open(os.path.join(ctx.repo_dir, "eval/calibration.md"), "a") as f:
         f.write(line + "\n")
     print(line)
+
+
+# Back-compat name for earlier notebook cells.
+calibrate_33m = calibrate_reference
 
 
 def evaluate_all(ctx: Ctx, **eval_kwargs) -> None:
