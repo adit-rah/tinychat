@@ -2,9 +2,9 @@ import math
 
 import torch
 
-from tinychat.data import batch_iterator
-from tinychat.model import build_model
-from tinychat.train import evaluate_ppl
+from nanofable.data import batch_iterator
+from nanofable.model import build_model
+from nanofable.train import evaluate_ppl
 
 
 def test_ppl_is_exp_mean_ce(data_paths, small_cfg):

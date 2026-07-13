@@ -1,9 +1,9 @@
 from torch import nn
 
-from tinychat.bitlinear import BitLinear
-from tinychat.bytes import count_bytes
-from tinychat.config import TIERS
-from tinychat.model import build_model
+from nanofable.bitlinear import BitLinear
+from nanofable.bytes import count_bytes
+from nanofable.config import TIERS
+from nanofable.model import build_model
 
 
 def _block_linear_weight_count(model):

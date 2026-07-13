@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from tinychat.kaggle import Ctx, verify_frozen_artifacts
+from nanofable.kaggle import Ctx, verify_frozen_artifacts
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), "..")
 

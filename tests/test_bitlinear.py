@@ -1,6 +1,6 @@
 import torch
 
-from tinychat.bitlinear import BitLinear
+from nanofable.bitlinear import BitLinear
 
 
 def test_forward_is_ternary_times_scale():

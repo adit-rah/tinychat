@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from tinychat.tokenizer import train_tokenizer  # noqa: E402
+from nanofable.tokenizer import train_tokenizer  # noqa: E402
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "artifacts", "tokenizer")
 OUT_PATH = os.path.join(OUT_DIR, "tokenizer.json")

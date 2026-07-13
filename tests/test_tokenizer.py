@@ -1,4 +1,4 @@
-from tinychat.tokenizer import BOS, EOS, PAD, load_tokenizer, train_tokenizer
+from nanofable.tokenizer import BOS, EOS, PAD, load_tokenizer, train_tokenizer
 
 CORPUS = [
     "Once upon a time there was a little cat named Tom.",

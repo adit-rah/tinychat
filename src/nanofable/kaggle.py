@@ -73,8 +73,8 @@ def build_data(ctx: Ctx) -> None:
     """Tokenize TinyStories train/val into memmaps if not already built (idempotent)."""
     from datasets import load_dataset
 
-    from tinychat.data import build_token_memmap
-    from tinychat.tokenizer import load_tokenizer
+    from nanofable.data import build_token_memmap
+    from nanofable.tokenizer import load_tokenizer
 
     tok = load_tokenizer(ctx.tokenizer_path)
     if not os.path.exists(ctx.train_path):
@@ -258,7 +258,7 @@ def calibrate_ladder(ctx: Ctx, model_ids: tuple[str, ...] = LADDER,
 
     from huggingface_hub import snapshot_download
 
-    from tinychat.sweep import _tail_line
+    from nanofable.sweep import _tail_line
 
     snapshot_download("Qwen/Qwen2.5-7B-Instruct")  # avoid a two-worker fetch race
     runs_dir = ctx.runs_dir
@@ -344,7 +344,7 @@ def evaluate_all(ctx: Ctx, workers: int | None = None, poll_s: int = 60,
 
     from eval.run_eval import evaluate_pending
 
-    from tinychat.sweep import _tail_line, run_dir_for, sweep_matrix
+    from nanofable.sweep import _tail_line, run_dir_for, sweep_matrix
 
     if workers is None:
         import torch

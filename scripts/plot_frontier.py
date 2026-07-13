@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from tinychat.plotting import collect_results, plot_frontier  # noqa: E402
+from nanofable.plotting import collect_results, plot_frontier  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 

@@ -144,7 +144,7 @@ def run_sweep_parallel(
         env = {**os.environ,
                "CUDA_VISIBLE_DEVICES": str(i),
                "PYTHONPATH": src_root + os.pathsep + os.environ.get("PYTHONPATH", "")}
-        procs.append(subprocess.Popen([sys.executable, "-m", "tinychat.sweep", cfg],
+        procs.append(subprocess.Popen([sys.executable, "-m", "nanofable.sweep", cfg],
                                       env=env, stdout=logf, stderr=subprocess.STDOUT))
         log_paths.append(log_path)
         log_files.append(logf)

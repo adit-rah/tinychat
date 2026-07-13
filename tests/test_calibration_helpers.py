@@ -38,7 +38,7 @@ def test_score_set_detailed_keeps_axes_and_writes_jsonl(tmp_path):
 
 
 def test_round_robin_split_partitions_the_ladder():
-    from tinychat.kaggle import LADDER
+    from nanofable.kaggle import LADDER
 
     for workers in (1, 2, 3):
         shards = [LADDER[i::workers] for i in range(workers)]

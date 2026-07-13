@@ -32,9 +32,9 @@ def load_prefixes(path: str | None = None) -> list[dict]:
 def load_model_from_run(run_dir: str):
     import torch
 
-    from tinychat.config import ModelConfig
-    from tinychat.model import build_model
-    from tinychat.train import load_latest
+    from nanofable.config import ModelConfig
+    from nanofable.model import build_model
+    from nanofable.train import load_latest
 
     meta = json.loads(open(os.path.join(run_dir, "meta.json")).read())
     cfg = ModelConfig(**meta["tier"])
@@ -47,8 +47,8 @@ def load_model_from_run(run_dir: str):
 
 
 def _generate(model, tok, prefix, **kwargs):
-    """Indirection over tinychat.generate.generate (patchable in tests)."""
-    from tinychat.generate import generate
+    """Indirection over nanofable.generate.generate (patchable in tests)."""
+    from nanofable.generate import generate
 
     return generate(model, tok, prefix, **kwargs)
 
@@ -60,7 +60,7 @@ def evaluate_run(run_dir: str, judge=None, max_new_tokens: int = 200,
     eval.json stores, per prefix, the completion text and the judge's raw output —
     zeros must be auditable (real verdict vs parse failure), so the evidence is kept.
     """
-    from tinychat.tokenizer import load_tokenizer
+    from nanofable.tokenizer import load_tokenizer
 
     if judge is None:
         from eval.judge import LocalQwenJudge
@@ -109,7 +109,7 @@ def evaluate_pending(runs_root: str, judge=None, claim: bool = False,
     training CLAIM). The judge is created once if not supplied. Returns the run dirs
     scored by this call.
     """
-    from tinychat.sweep import claim_run, run_dir_for, sweep_matrix
+    from nanofable.sweep import claim_run, run_dir_for, sweep_matrix
 
     if judge is None:
         from eval.judge import LocalQwenJudge

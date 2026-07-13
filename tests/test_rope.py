@@ -1,6 +1,6 @@
 import torch
 
-from tinychat.rope import apply_rope, build_rope_cache
+from nanofable.rope import apply_rope, build_rope_cache
 
 
 def test_rope_preserves_norm():

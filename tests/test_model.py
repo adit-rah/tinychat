@@ -1,8 +1,8 @@
 import torch
 
-from tinychat.bitlinear import BitLinear
-from tinychat.config import TIERS
-from tinychat.model import build_model
+from nanofable.bitlinear import BitLinear
+from nanofable.config import TIERS
+from nanofable.model import build_model
 
 
 def test_forward_shapes():

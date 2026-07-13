@@ -1,4 +1,4 @@
-from tinychat.flops import flops
+from nanofable.flops import flops
 
 
 def test_flops_formula():

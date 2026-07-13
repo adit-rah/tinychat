@@ -1,7 +1,7 @@
 import csv
 import os
 
-from tinychat.train import train_run
+from nanofable.train import train_run
 
 
 def _steps(csv_path):

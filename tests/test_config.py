@@ -1,4 +1,4 @@
-from tinychat.config import TIERS
+from nanofable.config import TIERS
 
 
 def test_tiers_fixed_ctx_and_vocab():

@@ -2,9 +2,9 @@ import os
 
 import torch
 
-from tinychat.config import ModelConfig
-from tinychat.model import build_model
-from tinychat.train import _make_scheduler, load_latest, save_checkpoint
+from nanofable.config import ModelConfig
+from nanofable.model import build_model
+from nanofable.train import _make_scheduler, load_latest, save_checkpoint
 
 
 def _make_state():

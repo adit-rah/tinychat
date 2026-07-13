@@ -6,7 +6,7 @@ import os
 import pytest
 
 import eval.run_eval as run_eval
-from tinychat.train import train_run
+from nanofable.train import train_run
 
 
 class RecordingJudge:
@@ -70,7 +70,7 @@ def test_evaluate_run_counts_parse_failures(trained_run):
 
 def test_evaluate_pending_scores_done_runs_and_respects_claims(tmp_path, small_cfg,
                                                                data_paths, monkeypatch):
-    from tinychat.sweep import claim_run, run_dir_for
+    from nanofable.sweep import claim_run, run_dir_for
 
     train_path, val_path = data_paths
     runs_root = str(tmp_path / "runs")
@@ -105,7 +105,7 @@ def test_evaluate_pending_scores_done_runs_and_respects_claims(tmp_path, small_c
 
 
 def test_evaluate_run_passes_decoding_params_to_generate(trained_run, monkeypatch):
-    import tinychat.generate as gen_mod
+    import nanofable.generate as gen_mod
 
     seen_kwargs = {}
     real_generate = gen_mod.generate

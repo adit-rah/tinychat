@@ -1,8 +1,8 @@
 import torch
 
-from tinychat.generate import generate, next_token
-from tinychat.model import build_model
-from tinychat.tokenizer import load_tokenizer, train_tokenizer
+from nanofable.generate import generate, next_token
+from nanofable.model import build_model
+from nanofable.tokenizer import load_tokenizer, train_tokenizer
 
 CORPUS = ["Once upon a time there was a little cat who liked to play."] * 100
 

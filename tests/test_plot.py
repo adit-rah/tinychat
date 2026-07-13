@@ -1,7 +1,7 @@
 import json
 import os
 
-from tinychat.plotting import collect_results, plot_frontier
+from nanofable.plotting import collect_results, plot_frontier
 
 
 def _make_run(runs_dir, name, total_bytes, val_ppl, judge_mean):

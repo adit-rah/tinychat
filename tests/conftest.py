@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from tinychat.data import build_token_memmap
-from tinychat.tokenizer import load_tokenizer, train_tokenizer
+from nanofable.data import build_token_memmap
+from nanofable.tokenizer import load_tokenizer, train_tokenizer
 
 _CORPUS = [
     "Once upon a time there was a little cat named Tom who loved the sun.",
@@ -28,6 +28,6 @@ def data_paths(tmp_path):
 @pytest.fixture
 def small_cfg():
     # A genuinely small config so CPU smoke tests are fast (ctx well below the real 512).
-    from tinychat.config import ModelConfig
+    from nanofable.config import ModelConfig
 
     return ModelConfig(n_layer=2, n_embd=64, n_head=4, ctx=32, vocab=512)

@@ -12,8 +12,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from tinychat.data import build_token_memmap  # noqa: E402
-from tinychat.tokenizer import load_tokenizer  # noqa: E402
+from nanofable.data import build_token_memmap  # noqa: E402
+from nanofable.tokenizer import load_tokenizer  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 TOK_PATH = os.path.join(ROOT, "artifacts", "tokenizer", "tokenizer.json")

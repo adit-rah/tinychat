@@ -1,6 +1,6 @@
 import os
 
-import tinychat.sweep as sweep
+import nanofable.sweep as sweep
 
 # The conftest `data_paths` fixture provides real (tiny) train/val memmaps for the
 # end-to-end parallel test; the fast kwargs keep a real tiny-tier run to a few CPU steps.

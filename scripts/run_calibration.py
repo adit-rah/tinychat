@@ -96,7 +96,7 @@ def score_reference(judge, model_id: str, sampled: bool = False,
                     n_prefixes: int | None = None,
                     detail_path: str | None = None) -> tuple[float, float, int]:
     """Score one published TinyStories checkpoint; returns (mean, ci_half, n)."""
-    from tinychat.kaggle import _tinystories_ref_fn
+    from nanofable.kaggle import _tinystories_ref_fn
 
     prefixes = _load_prefixes()[:n_prefixes]
     short = model_id.split("/")[-1]
@@ -166,7 +166,7 @@ def main(judge=None, model33m_fn=None, repeats: int = 3):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1].lstrip().startswith("{"):
-        # Ladder-worker mode (see tinychat.kaggle.calibrate_ladder): score the given
+        # Ladder-worker mode (see nanofable.kaggle.calibrate_ladder): score the given
         # reference models with one judge and write JSON lines to cfg["out"].
         from eval.judge import LocalQwenJudge
 

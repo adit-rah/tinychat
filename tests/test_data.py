@@ -3,8 +3,8 @@ import os
 import numpy as np
 import pytest
 
-from tinychat.data import batch_iterator, build_token_memmap
-from tinychat.tokenizer import load_tokenizer, train_tokenizer
+from nanofable.data import batch_iterator, build_token_memmap
+from nanofable.tokenizer import load_tokenizer, train_tokenizer
 
 CORPUS = [
     "Once upon a time there was a little cat named Tom.",
