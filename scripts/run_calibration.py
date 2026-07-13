@@ -58,6 +58,27 @@ def score_set(judge, prefixes, completion_fn, label: str = "") -> list[float]:
     return scores
 
 
+def reference_line(model_id: str, sampled: bool, n: int, mean: float, half: float) -> str:
+    """The calibration.md ledger line for one published reference model."""
+    short = model_id.split("/")[-1]
+    decode = "sampled temp1.0/topk40" if sampled else "greedy"
+    return (f"- reference ({short}, {decode}, n={n}) mean: "
+            f"{mean:.3f}  (95% CI ±{half:.3f})  (addendum)")
+
+
+def score_reference(judge, model_id: str, sampled: bool = False,
+                    n_prefixes: int | None = None) -> tuple[float, float, int]:
+    """Score one published TinyStories checkpoint; returns (mean, ci_half, n)."""
+    from tinychat.kaggle import _tinystories_ref_fn
+
+    prefixes = _load_prefixes()[:n_prefixes]
+    short = model_id.split("/")[-1]
+    scores = score_set(judge, prefixes, _tinystories_ref_fn(model_id, sampled=sampled),
+                       label=f"{short}-{'sampled' if sampled else 'greedy'}")
+    mean, half = mean_and_ci(scores)
+    return mean, half, len(prefixes)
+
+
 def main(judge=None, model33m_fn=None, repeats: int = 3):
     if judge is None:
         from eval.judge import LocalQwenJudge
@@ -108,4 +129,20 @@ def main(judge=None, model33m_fn=None, repeats: int = 3):
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1].lstrip().startswith("{"):
+        # Ladder-worker mode (see tinychat.kaggle.calibrate_ladder): score the given
+        # reference models with one judge and write JSON lines to cfg["out"].
+        from eval.judge import LocalQwenJudge
+
+        _cfg = json.loads(sys.argv[1])
+        _judge = LocalQwenJudge()
+        with open(_cfg["out"], "a") as _f:
+            for _mid in _cfg["model_ids"]:
+                _mean, _half, _n = score_reference(
+                    _judge, _mid, sampled=_cfg["sampled"],
+                    n_prefixes=_cfg["n_prefixes"])
+                _f.write(json.dumps({"model_id": _mid, "mean": _mean,
+                                     "ci_half": _half, "n": _n}) + "\n")
+                _f.flush()
+    else:
+        main()

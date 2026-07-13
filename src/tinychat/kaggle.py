@@ -201,14 +201,9 @@ def calibrate_reference(ctx: Ctx, model_id: str = "roneneldan/TinyStories-33M",
         from eval.judge import LocalQwenJudge
 
         judge = LocalQwenJudge()
-    prefixes = cal._load_prefixes()[:n_prefixes]
-    short = model_id.split("/")[-1]
-    decode = "sampled temp1.0/topk40" if sampled else "greedy"
-    med = cal.score_set(judge, prefixes, _tinystories_ref_fn(model_id, sampled=sampled),
-                        label=f"{short}-{'sampled' if sampled else 'greedy'}")
-    mean, half = cal.mean_and_ci(med)
-    line = (f"- reference ({short}, {decode}, n={len(prefixes)}) mean: "
-            f"{mean:.3f}  (95% CI ±{half:.3f})  (addendum)")
+    mean, half, n = cal.score_reference(judge, model_id, sampled=sampled,
+                                        n_prefixes=n_prefixes)
+    line = cal.reference_line(model_id, sampled, n, mean, half)
     with open(os.path.join(ctx.repo_dir, "eval/calibration.md"), "a") as f:
         f.write(line + "\n")
     print(line)
@@ -216,6 +211,106 @@ def calibrate_reference(ctx: Ctx, model_id: str = "roneneldan/TinyStories-33M",
 
 # Back-compat name for earlier notebook cells.
 calibrate_33m = calibrate_reference
+
+LADDER = tuple(f"roneneldan/TinyStories-{m}" for m in ("1M", "3M", "8M", "28M", "33M"))
+
+
+def calibrate_ladder(ctx: Ctx, model_ids: tuple[str, ...] = LADDER,
+                     sampled: bool = False, n_prefixes: int | None = None,
+                     workers: int | None = None, poll_s: int = 60) -> None:
+    """Score the published reference ladder, one judge per GPU (anchor rule,
+    eval/calibration.md).
+
+    Models are split round-robin across workers; each worker writes JSON results to its
+    own file (`runs/ladder_worker{i}.jsonl`, logs alongside) and the parent appends the
+    ledger lines to calibration.md in ladder order — concurrent workers never touch the
+    ledger directly. Single GPU falls back to one in-process judge.
+    """
+    import json as _json
+    import time
+
+    if workers is None:
+        import torch
+
+        workers = max(1, torch.cuda.device_count())
+    workers = min(workers, len(model_ids))
+    if workers == 1:
+        from eval.judge import LocalQwenJudge
+
+        judge = LocalQwenJudge()
+        for mid in model_ids:
+            calibrate_reference(ctx, model_id=mid, sampled=sampled,
+                                n_prefixes=n_prefixes, judge=judge)
+        return
+
+    from huggingface_hub import snapshot_download
+
+    from tinychat.sweep import _tail_line
+
+    snapshot_download("Qwen/Qwen2.5-7B-Instruct")  # avoid a two-worker fetch race
+    runs_dir = ctx.runs_dir
+    os.makedirs(runs_dir, exist_ok=True)
+    procs, out_paths, log_paths, log_files = [], [], [], []
+    for i in range(workers):
+        out_path = os.path.join(runs_dir, f"ladder_worker{i}.jsonl")
+        log_path = os.path.join(runs_dir, f"ladder_worker{i}.log")
+        if os.path.exists(out_path):
+            os.remove(out_path)
+        cfg = _json.dumps({"model_ids": list(model_ids[i::workers]), "sampled": sampled,
+                           "n_prefixes": n_prefixes, "out": out_path})
+        logf = open(log_path, "a")
+        env = {**os.environ,
+               "CUDA_VISIBLE_DEVICES": str(i),
+               "PYTHONPATH": os.pathsep.join(
+                   [os.path.join(ctx.repo_dir, "src"), ctx.repo_dir,
+                    os.environ.get("PYTHONPATH", "")])}
+        procs.append(subprocess.Popen(
+            [sys.executable, os.path.join(ctx.repo_dir, "scripts/run_calibration.py"),
+             cfg], env=env, cwd=ctx.repo_dir, stdout=logf, stderr=subprocess.STDOUT))
+        out_paths.append(out_path)
+        log_paths.append(log_path)
+        log_files.append(logf)
+
+    last = [""] * workers
+    try:
+        while any(p.poll() is None for p in procs):
+            time.sleep(poll_s)
+            for i, log_path in enumerate(log_paths):
+                line = _tail_line(log_path)
+                if line and line != last[i]:
+                    print(f"[gpu{i}] {line}", flush=True)
+                    last[i] = line
+    finally:
+        for p in procs:
+            if p.poll() is None:
+                p.terminate()
+        for f in log_files:
+            f.close()
+
+    failed = [i for i, p in enumerate(procs) if p.returncode != 0]
+    if failed:
+        raise RuntimeError(
+            f"ladder worker(s) {failed} failed — see "
+            + ", ".join(log_paths[i] for i in failed)
+            + " (completed model results are in the .jsonl files)")
+
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "run_calibration", os.path.join(ctx.repo_dir, "scripts/run_calibration.py"))
+    cal = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cal)
+    results = {}
+    for out_path in out_paths:
+        with open(out_path) as f:
+            for row in map(_json.loads, f):
+                results[row["model_id"]] = row
+    with open(os.path.join(ctx.repo_dir, "eval/calibration.md"), "a") as f:
+        for mid in model_ids:  # ledger lines land in ladder order, not finish order
+            r = results[mid]
+            line = cal.reference_line(mid, sampled, r["n"], r["mean"], r["ci_half"])
+            f.write(line + "\n")
+            print(line)
 
 
 def evaluate_all(ctx: Ctx, workers: int | None = None, poll_s: int = 60,
