@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>nanofable — a pocket storyteller</title>
+  <meta name="description" content="A ~1 MB ternary language model that finishes your story, running entirely in your browser." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129718;</text></svg>" />
+  <link rel="preload" href="fonts/im-fell-english.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/im-fell-english-italic.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/eb-garamond.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/eb-garamond-italic.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-head">
+    <div class="mark">nanofable<span class="mark-sub"> · a pocket storyteller</span></div>
+    <button id="install-btn" class="icon-btn" aria-label="Install all models" title="Install all models">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    </button>
+  </header>
+
+  <main id="main">
+    <section id="hero">
+      <h1 class="hero-title">Have a story to tell?</h1>
+      <p class="hero-sub">Bar'd is a <span id="hero-bytes">1.2&nbsp;MB</span> storyteller running entirely in your browser.
+        Give him an opening line, and he'll <u><em>probably</em></u> tell you a pretty good story.</p>
+      <picture>
+        <source media="(prefers-reduced-motion: reduce)" srcset="assets/bard-still.png" />
+        <img class="hero-bard" src="assets/bard-talk.gif" alt="Bar'd, the nanofable bard" width="465" height="330" />
+      </picture>
+    </section>
+    <section id="transcript" aria-live="polite"></section>
+  </main>
+
+  <div class="composer-wrap">
+    <form id="composer" class="composer">
+      <textarea id="input" rows="1" placeholder="Once upon a time&hellip;" autocomplete="off" spellcheck="true"></textarea>
+      <div class="composer-row">
+        <div class="composer-tools">
+          <div class="menu-anchor">
+            <button type="button" id="model-btn" class="chip" aria-haspopup="true" aria-expanded="false">
+              <span id="model-btn-label">loading&hellip;</span>
+            </button>
+            <div id="model-menu" class="menu" role="menu" hidden></div>
+          </div>
+          <div class="menu-anchor">
+            <button type="button" id="config-btn" class="chip chip-icon" aria-label="Sampling settings" title="Sampling settings" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+              </svg>
+            </button>
+            <div id="config-menu" class="menu menu-config" hidden>
+              <p class="menu-heading">Sampling</p>
+              <label>Max tokens
+                <input id="cfg-max-tokens" type="number" min="1" max="400" step="1" value="150" />
+              </label>
+              <label>Temperature
+                <input id="cfg-temperature" type="number" min="0" max="2" step="0.1" value="0.8" />
+              </label>
+              <label>Top-k <span class="hint">(0 = off)</span>
+                <input id="cfg-top-k" type="number" min="0" max="4096" step="1" value="40" />
+              </label>
+              <label>Seed
+                <input id="cfg-seed" type="number" min="0" step="1" value="0" />
+              </label>
+            </div>
+          </div>
+        </div>
+        <button id="send-btn" type="submit" class="send" aria-label="Continue the story" disabled>
+          <svg class="ic-quill" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" /><line x1="16" y1="8" x2="2" y2="22" />
+          </svg>
+          <svg class="ic-stop" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+        </button>
+      </div>
+    </form>
+    <p class="colophon">every word is written on your machine &mdash; nothing leaves the page</p>
+  </div>
+
+  <div id="toast-region" aria-live="assertive"></div>
+  <aside id="progress-card" hidden>
+    <p class="progress-title">Installing models</p>
+    <p id="progress-label" class="progress-label"></p>
+    <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+    <p id="progress-overall" class="progress-overall"></p>
+  </aside>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

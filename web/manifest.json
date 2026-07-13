@@ -1,0 +1,21 @@
+{
+  "comment": "Model registry for the demo site. Naming follows the HuggingFace release: NanoFable-<params>-<precision> (tiers tiny/small/medium/large = 1M/6M/16M/28M). The baked default (nanofable-16m-fp16) ships in web/models/; every other model streams its model.tpack from its HF repo on install. bytes are the on-disk .tpack sizes; ppl/judge/gate fill in from the sweep.",
+  "models": [
+    { "id": "nanofable-1m-ternary", "tier": "tiny", "params": "1M", "precision": "ternary", "label": "NanoFable-1M-ternary",
+      "url": "https://huggingface.co/adrahmana/NanoFable-1M-ternary/resolve/main/model.tpack", "bytes": 1225968, "ppl": null, "judge": null, "gate": null, "baked": false },
+    { "id": "nanofable-1m-fp16", "tier": "tiny", "params": "1M", "precision": "fp16", "label": "NanoFable-1M-fp16",
+      "url": "https://huggingface.co/adrahmana/NanoFable-1M-fp16/resolve/main/model.tpack", "bytes": 2758680, "ppl": null, "judge": null, "gate": null, "baked": false },
+    { "id": "nanofable-6m-ternary", "tier": "small", "params": "6M", "precision": "ternary", "label": "NanoFable-6M-ternary",
+      "url": "https://huggingface.co/adrahmana/NanoFable-6M-ternary/resolve/main/model.tpack", "bytes": 3074144, "ppl": null, "judge": null, "gate": null, "baked": false },
+    { "id": "nanofable-6m-fp16", "tier": "small", "params": "6M", "precision": "fp16", "label": "NanoFable-6M-fp16",
+      "url": "https://huggingface.co/adrahmana/NanoFable-6M-fp16/resolve/main/model.tpack", "bytes": 11743256, "ppl": null, "judge": null, "gate": null, "baked": false },
+    { "id": "nanofable-16m-ternary", "tier": "medium", "params": "16M", "precision": "ternary", "label": "NanoFable-16M-ternary",
+      "url": "https://huggingface.co/adrahmana/NanoFable-16M-ternary/resolve/main/model.tpack", "bytes": 5999152, "ppl": null, "judge": null, "gate": null, "baked": false },
+    { "id": "nanofable-16m-fp16", "tier": "medium", "params": "16M", "precision": "fp16", "label": "NanoFable-16M-fp16",
+      "url": "models/nanofable-16m-fp16.tpack", "bytes": 31477816, "ppl": null, "judge": null, "gate": null, "baked": true },
+    { "id": "nanofable-28m-ternary", "tier": "large", "params": "28M", "precision": "ternary", "label": "NanoFable-28M-ternary",
+      "url": "https://huggingface.co/adrahmana/NanoFable-28M-ternary/resolve/main/model.tpack", "bytes": 9358936, "ppl": null, "judge": null, "gate": null, "baked": false },
+    { "id": "nanofable-28m-fp16", "tier": "large", "params": "28M", "precision": "fp16", "label": "NanoFable-28M-fp16",
+      "url": "https://huggingface.co/adrahmana/NanoFable-28M-fp16/resolve/main/model.tpack", "bytes": 55599464, "ppl": null, "judge": null, "gate": null, "baked": false }
+  ]
+}
