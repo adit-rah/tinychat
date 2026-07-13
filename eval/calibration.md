@@ -86,3 +86,25 @@ ladder retaining per-axis detail). **T1 rule (frozen before those measurements):
 is T1-capable iff its grammar-axis mean ≥ the grammar-axis mean of the same anchor
 checkpoint selected by the primary anchor rule (TinyStories-8M), CI straddling reported as
 indistinguishable. Gold's grammar mean is reported alongside as the scale ceiling.
+
+### T1 anchor measurements & verdicts (2026-07-13)
+
+Reference axis profiles (greedy, n=200; grammar / consistency / completes):
+
+- TinyStories-1M: 3.31 / 2.46 / 1.50
+- TinyStories-3M: 3.92 / 3.50 / 2.58
+- TinyStories-8M: **4.55** / 4.42 / 3.73  ← T1 bar = 4.550 (grammar, per frozen rule)
+- TinyStories-28M: 4.67 / 4.58 / 4.08
+- TinyStories-33M: 4.64 / 4.54 / 3.95
+- gold: 4.74 / 4.68 / 4.29 (scale ceiling)
+
+**Verdict: all eight sweep configs fail T1** (best grammar: large_fp16 at 3.83 ±0.06,
+statistically indistinguishable from TinyStories-3M's 3.92 ±0.09). The exploratory
+threshold is also a null against the anchor. What stands is the structure: the axis
+ordering grammar > consistency > completes holds for **every** model measured — all 8
+sweep configs, all 5 references, and gold — and ternary taxes the state axes ~1.7× harder
+than the grammar axis (large tier: −0.85 grammar vs −1.43/−1.44 consistency/completes).
+
+PPL gate resolution: best fp16 val PPL = 5.393 (large_fp16 seed 1) → T = 8.089. Only
+medium_fp16 and large_fp16 pass the PPL gate; both fail the coherence gate — PPL is
+necessary but not sufficient for judged coherence, as the gate design intended.
