@@ -23,7 +23,7 @@
 
 I trained a family of 8 language models from scratch to find out where coherent English begins, and put every one of them in your browser.
 
-Meet Bar'd. He weighs between 1.2 and 55 MB depending on which of him you load, he runs entirely in a browser tab (no server, no build step, no WASM toolkit: hand-written vanilla JS doing the inference), and if you hand him the first line of a story he'll write you the rest. All eight models are in the picker, each labeled with its judged coherence and size, so you can feel with your own eyes what an extra megabyte buys.
+Meet Bar'd. He weighs between 1.2 and 55 MB depending on which of him you load, he runs entirely in a browser tab (no server, no build step, no WASM toolkit: vanilla JS doing the inference :O), and if you hand him the first line of a story he'll write you the rest. All eight models are in the picker, each labeled with its judged coherence and size, so you can feel with your own eyes what an extra megabyte buys.
 
 <div align="center">
 <a href="https://adit-rah.github.io/nanofable/"><img src="docs/demo.png" alt="Bar'd writing a story in the browser, from the opening line 'Once upon a time, a little fox found a tiny door in the woods.'" width="720" /></a>
