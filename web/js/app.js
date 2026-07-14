@@ -103,7 +103,7 @@ function renderModelMenu() {
       row.className = "menu-row locked";
       const tip = document.createElement("span");
       tip.className = "menu-tip";
-      tip.textContent = "Not installed yet — press the install button (top left) to download it.";
+      tip.textContent = "Not installed yet — press the install button (top right) to download it.";
       row.append(item, tip);
       el.modelMenu.append(row);
     }

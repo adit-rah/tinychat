@@ -35,7 +35,7 @@ nanofable is the harness behind him, and it exists to explore one question: **ho
 
 ## The map
 
-Nobody had drawn this curve before: prior ternary-vs-full-precision work at tiny scale is single-point comparisons. Here is the frontier itself, coherence against honest packed bytes, both arms, with 95% CIs:
+The ternary-vs-full-precision work I could find at this scale compares a single model against a single baseline, and I really wanted to see the whole curve. So here it is: coherence against honest packed bytes, both arms, every tier, with 95% CIs.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/frontier-dark.png" />
