@@ -191,6 +191,11 @@ for (const [key, c] of Object.entries(cfgInputs)) {
   });
 }
 
+// A fresh seed each page load, so a reload tells a different story. It is still shown
+// in the popover and editable, so a story stays reproducible once you have its seed.
+state.config.seed = Math.floor(Math.random() * 2 ** 31);
+cfgInputs.seed.el.value = state.config.seed;
+
 // ---- menus ----------------------------------------------------------------------
 
 function closeMenus() {

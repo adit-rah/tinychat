@@ -11,7 +11,7 @@
   &nbsp;·&nbsp;
   <a href="https://huggingface.co/spaces/adrahmana/nanofable">mirror on Hugging Face</a>
   &nbsp;·&nbsp;
-  <a href="https://huggingface.co/adrahmana">model weights</a>
+  <a href="https://huggingface.co/collections/adrahmana/nanofable">model weights</a>
 </p>
 
 <p>
@@ -33,7 +33,7 @@ nanofable is the harness behind him, and it exists to explore one question: **ho
 
 4 sizes x 2 precisions (fp16 vs ternary) x 2 seeds on TinyStories. 16 runs, everything else held steady, all of it scored by a frozen LLM judge against a bar we committed to git before the first run started. The whole sweep fit inside a free Kaggle GPU quota.
 
-## the map
+## The map
 
 Nobody had drawn this curve before: prior ternary-vs-full-precision work at tiny scale is single-point comparisons. Here is the frontier itself, coherence against honest packed bytes, both arms, with 95% CIs:
 
@@ -64,7 +64,7 @@ Three things worth saying plainly, because they scope the result and they're whe
 
 **BitNet reaches ternary/fp16 parity at 3B+ params**, so a crossing very likely exists somewhere. It just doesn't seem to be down here at the emergence scale, which is the scale you'd actually want a 1 MB model for.
 
-## where the models landed
+## Where the models landed
 
 Here's the whole sweep. Pooled across seeds, n=400 completions per config, greedy decoding, one frozen judge (the same numbers live in [`results/summary.csv`](results/summary.csv), generated straight from the run outputs, never hand-edited):
 
@@ -83,7 +83,7 @@ Read the grammar column against the frozen rubric, where **4 means "minor slips 
 
 The more interesting part is what *doesn't* keep pace. `large_fp16` writes near-clean sentences (3.83) and still only manages 3.23 on consistency and 2.26 on landing an ending. **Grammar arrives well before sense does.** The model has learned English and hasn't yet learned to hold a story in its head. Its val loss was still falling when the tokens ran out (finding 3), so this is a snapshot of a model mid-climb rather than a finished one, which is a nice thing to know: there's clearly more in there.
 
-## three findings that outlive the numbers
+## Three findings that outlive the numbers
 
 **1. Coherence has a pecking order, and it looks universal.** grammar > consistency > completes-sensibly. All 8 sweep configs. All 5 published TinyStories checkpoints. And the real, human-written gold text (4.74 / 4.68 / 4.29). Fourteen out of fourteen, no exceptions. Models learn to shape a sentence long before they learn to hold state across sentences, and landing an ending arrives last. Even human prose tilts the same way, which suggests this is the shape of the task rather than an artifact of our models being small.
 
@@ -100,7 +100,7 @@ The more interesting part is what *doesn't* keep pace. `large_fp16` writes near-
 
 Nothing converged, so 500M tokens is binding on *both* arms. But ternary is measurably further from the end of its own curve, and the gap widens with model size. Ternary is still descending while fp16 has started to level off. So quantization doesn't only cost quality at a fixed token budget, **it seems to raise the token budget you needed in the first place**, and to ask for more the bigger you build. Which also means every ternary number above is a floor, not a ceiling: these models never got the budget they were asking for.
 
-## where that leaves us on the ladder
+## Where that leaves us on the ladder
 
 We scored every published TinyStories checkpoint through the exact same judge, so "how far off are we" has a real number attached:
 
@@ -115,7 +115,7 @@ We scored every published TinyStories checkpoint through the exact same judge, s
 
 `large_fp16` lands right on TinyStories-3M, statistically indistinguishable from it, and the smallest published checkpoint clearing 4.0 is the 8M. So we're about one rung short, on a ladder we can now see end to end, with a calibrated instrument pointed right at the gap. That's a nice place to be picking things up from.
 
-## the vocab sacrifice
+## The vocab sacrifice
 
 This one decision is what made any of the above measurable, and it's the part of the design I'm happiest with. We train our own 4,096-token BPE tokenizer instead of reaching for GPT-2's 50k.
 
@@ -134,11 +134,11 @@ Ternary's compression ratio gets *better* as models grow, because only the body 
 
 One tested function defines every number in that table: `count_bytes()` in `src/nanofable/bytes.py`. Block weights at 1.58/8 each, embeddings + tied head at fp16, per-layer scales counted honestly. The headline rides on it being right, so it has its own test file plus a test that guards the vocab decision at every tier.
 
-## the bar, frozen before anything ran
+## The set bar
 
-"Smallest capable model" doesn't mean much unless you say what *capable* means before you look. So we wrote it down first, in git: the rubric, the 200 held-out prefixes, the judge (`Qwen2.5-7B-Instruct`), and the judge prompt, all committed before run one.
+"Smallest capable model" doesn't mean much unless you say what *capable* means before you look. So we wrote it down first in git: the rubric, the 200 held-out prefixes, the judge (`Qwen2.5-7B-Instruct`), and the judge prompt.
 
-Capable iff both:
+We set capable to be iff both:
 
 - **coherence:** mean judge score >= 4.0 / 5, averaged over grammar / consistency / completes, on the fixed 200 prefixes.
 - **perplexity:** val PPL <= 1.5x the best fp16 val PPL in the sweep. The *rule* is frozen; the number resolves once the fp16 runs land. We fix the policy, not the answer.
