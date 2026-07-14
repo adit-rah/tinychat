@@ -6,17 +6,43 @@
 
 <p><i>how small can English get?</i></p>
 
+<p>
+  <b><a href="https://adit-rah.github.io/nanofable/">✒️ Write a story with Bar'd</a></b>
+  &nbsp;·&nbsp;
+  <a href="https://huggingface.co/spaces/adrahmana/nanofable">mirror on Hugging Face</a>
+  &nbsp;·&nbsp;
+  <a href="https://huggingface.co/adrahmana">model weights</a>
+</p>
+
+<p>
+  <a href="https://github.com/adit-rah/nanofable/actions/workflows/pages.yml"><img src="https://github.com/adit-rah/nanofable/actions/workflows/pages.yml/badge.svg" alt="deploy" /></a>
+  <img src="https://img.shields.io/badge/tests-106%20passing%20·%20offline%20·%20no%20GPU-2a78d6" alt="106 tests, offline, no GPU" />
+</p>
+
 </div>
 
-Meet Bar'd. He weighs between 1.2 and 55 MB depending on which of him you load, he runs entirely in a browser tab (no server, no build step, no WASM toolchain), and if you hand him the first line of a story he'll write you the rest.
+I trained a family of 8 language models from scratch to find out where coherent English begins, and put every one of them in your browser.
+
+Meet Bar'd. He weighs between 1.2 and 55 MB depending on which of him you load, he runs entirely in a browser tab (no server, no build step, no WASM toolkit: hand-written vanilla JS doing the inference), and if you hand him the first line of a story he'll write you the rest. All eight models are in the picker, each labeled with its judged coherence and size, so you can feel with your own eyes what an extra megabyte buys.
+
+<div align="center">
+<a href="https://adit-rah.github.io/nanofable/"><img src="docs/demo.png" alt="Bar'd writing a story in the browser, from the opening line 'Once upon a time, a little fox found a tiny door in the woods.'" width="720" /></a>
+</div>
 
 nanofable is the harness behind him, and it exists to explore one question: **how small can a language model get, in honest packed bytes, and still write coherent English? And do ternary (1.58-bit) weights push that floor down?**
 
-4 sizes x 2 precisions (fp16 vs ternary) x 2 seeds on TinyStories. 16 runs, everything else held steady, all of it scored by a frozen LLM judge against a bar we committed to git before the first run started.
+4 sizes x 2 precisions (fp16 vs ternary) x 2 seeds on TinyStories. 16 runs, everything else held steady, all of it scored by a frozen LLM judge against a bar we committed to git before the first run started. The whole sweep fit inside a free Kaggle GPU quota.
 
-## what we found
+## the map
 
-**Ternary didn't push the floor down.** At the sizes we measured, fp16 buys more coherence per byte, and we didn't find a crossing anywhere in the range.
+Nobody had drawn this curve before: prior ternary-vs-full-precision work at tiny scale is single-point comparisons. Here is the frontier itself, coherence against honest packed bytes, both arms, with 95% CIs:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/frontier-dark.png" />
+  <img src="docs/frontier.png" alt="Coherence vs bytes frontier: the fp16 curve sits above the ternary curve at every size measured; neither clears the 4.0 capability gate" width="100%" />
+</picture>
+
+The answer it gives is clean: **ternary didn't push the floor down.** At the sizes we measured, fp16 buys more coherence per byte, and we didn't find a crossing anywhere in the range.
 
 Byte-matched, interpolating the fp16 curve to each ternary model's exact size:
 
@@ -40,7 +66,7 @@ Three things worth saying plainly, because they scope the result and they're whe
 
 ## where the models landed
 
-Here's the whole sweep. Pooled across seeds, n=400 completions per config, greedy decoding, one frozen judge:
+Here's the whole sweep. Pooled across seeds, n=400 completions per config, greedy decoding, one frozen judge (the same numbers live in [`results/summary.csv`](results/summary.csv), generated straight from the run outputs, never hand-edited):
 
 | config | params | bytes | coherence | grammar | consistency | completes | val PPL |
 |--------|-------:|------:|----------:|--------:|------------:|----------:|--------:|
@@ -73,6 +99,21 @@ The more interesting part is what *doesn't* keep pace. `large_fp16` writes near-
 | large  |               3.3% |                  5.0% | 1.5x  |
 
 Nothing converged, so 500M tokens is binding on *both* arms. But ternary is measurably further from the end of its own curve, and the gap widens with model size. Ternary is still descending while fp16 has started to level off. So quantization doesn't only cost quality at a fixed token budget, **it seems to raise the token budget you needed in the first place**, and to ask for more the bigger you build. Which also means every ternary number above is a floor, not a ceiling: these models never got the budget they were asking for.
+
+## where that leaves us on the ladder
+
+We scored every published TinyStories checkpoint through the exact same judge, so "how far off are we" has a real number attached:
+
+| model            | coherence | grammar / consistency / completes |
+|------------------|----------:|-----------------------------------|
+| TinyStories-1M   |     2.423 | 3.31 / 2.46 / 1.50                |
+| TinyStories-3M   |     3.330 | 3.92 / 3.50 / 2.58                |
+| TinyStories-8M   | **4.232** | 4.55 / 4.42 / 3.73                |
+| TinyStories-28M  |     4.447 | 4.67 / 4.58 / 4.08                |
+| TinyStories-33M  |     4.378 | 4.64 / 4.54 / 3.95                |
+| gold (real text) |         . | 4.74 / 4.68 / 4.29                |
+
+`large_fp16` lands right on TinyStories-3M, statistically indistinguishable from it, and the smallest published checkpoint clearing 4.0 is the 8M. So we're about one rung short, on a ladder we can now see end to end, with a calibrated instrument pointed right at the gap. That's a nice place to be picking things up from.
 
 ## the vocab sacrifice
 
@@ -115,9 +156,9 @@ Two other suspects, both easy to test, and the harness is already built to test 
 - the **4k vocab**, which makes every token a harder prediction than the published models' 50k.
 - the **shared 3e-4 LR**, which may suit one arm better than the other.
 
-## the bug the freeze caught
+## the freeze that caught its own bug
 
-This is the part I'd most want someone else to take away from the project.
+This is the part I'd most want someone else to take away from the project: the pre-registration discipline didn't just sit there looking virtuous, it caught a live instrumentation bug before it could contaminate the results.
 
 Midway through, the sampled judge scores came back much lower than expected. The audit turned up the reason: decoding policy was never in the freeze list. The calibration references had been scored decoding-free or greedy, and the sweep models were being scored on temperature-1.0 / top-k-40 samples. Nobody had written down which, so nobody noticed they'd drifted apart.
 
@@ -126,21 +167,6 @@ Score the known-good TinyStories-33M under that same sampled policy and it comes
 If the sweep had happened to clear that gate, we'd have reported something that didn't mean anything. Instead the frozen-artifact habit surfaced it, and we re-froze greedy decoding uniformly across every model and every reference (the only policy the original calibration had actually validated). We did that blind, before a single greedy sweep score existed, which is what makes it an instrument correction rather than quietly tuning the gate until we liked the answer. Keeping the artifacts in git is the only reason we can tell those two apart after the fact.
 
 The discipline paid for itself here, and it's cheap to set up. Recommended.
-
-## where that leaves us on the ladder
-
-We scored every published TinyStories checkpoint through the exact same judge, so "how far off are we" has a real number attached:
-
-| model            | coherence | grammar / consistency / completes |
-|------------------|----------:|-----------------------------------|
-| TinyStories-1M   |     2.423 | 3.31 / 2.46 / 1.50                |
-| TinyStories-3M   |     3.330 | 3.92 / 3.50 / 2.58                |
-| TinyStories-8M   | **4.232** | 4.55 / 4.42 / 3.73                |
-| TinyStories-28M  |     4.447 | 4.67 / 4.58 / 4.08                |
-| TinyStories-33M  |     4.378 | 4.64 / 4.54 / 3.95                |
-| gold (real text) |         . | 4.74 / 4.68 / 4.29                |
-
-`large_fp16` lands right on TinyStories-3M, statistically indistinguishable from it, and the smallest published checkpoint clearing 4.0 is the 8M. So we're about one rung short, on a ladder we can now see end to end, with a calibrated instrument pointed right at the gap. That's a nice place to be picking things up from.
 
 ## Bar'd, in your browser
 
@@ -186,9 +212,10 @@ python3 -m venv .venv
 | 3 | prefixes *(frozen)* | `scripts/make_prefixes.py` | `eval/prefixes.jsonl` (200) |
 | 4 | calibration *(frozen)* | `scripts/run_calibration.py` | `eval/calibration.md` |
 | 5 | sweep | `scripts/run_sweep.py` | `runs/<tier>_<prec>_<seed>/` |
-| 6 | plot | `scripts/plot_frontier.py` | `docs/frontier.png` |
+| 6 | summarize | `scripts/summarize_results.py` | `results/summary.csv` |
+| 7 | plot | `scripts/plot_frontier_showcase.py` | `docs/frontier.png` (+ dark variant) |
 
-Steps 1-3 are one-time artifacts committed *before* the sweep. That's what makes "frozen" enforceable by version control instead of by my good intentions. Steps 4-5 want a GPU, and the good news is the whole 16-run sweep is only 10-20 GPU-hours, which fits inside Kaggle's free weekly quota. Sessions cap at 12h so every run checkpoints, and the sweep is idempotent: kill it, re-run it, finished runs get skipped.
+Steps 1-3 are one-time artifacts committed *before* the sweep. That's what makes "frozen" enforceable by version control instead of by my good intentions. Steps 4-5 want a GPU, and the good news is the whole 16-run sweep is only 10-20 GPU-hours, which fits inside Kaggle's free weekly quota. Sessions cap at 12h so every run checkpoints, and the sweep is idempotent: kill it, re-run it, finished runs get skipped. Step 6 distills the raw run outputs into the committed `results/summary.csv`, and step 7 renders the frontier figure from that file alone, so both are reproducible from what's in the repo. (`scripts/plot_frontier.py` is the original spec deliverable and still reads raw run dirs directly.)
 
 One caveat worth stating plainly. Ternary is cheaper to ship and *more* expensive to train, because you carry a full-precision latent weight and quantize it on every forward pass. "Smaller in bytes" and "cheaper to train" point in opposite directions, so we log and report both. Compute is recorded per run (FLOPs ~ 6*N*T, plus wall-clock).
 
@@ -196,12 +223,13 @@ One caveat worth stating plainly. Ternary is cheaper to ship and *more* expensiv
 
 - `src/nanofable/` model (`model.py`, `bitlinear.py`, `rope.py`), byte accounting (`bytes.py`), data, training, sweep, `.tpack` packing.
 - `eval/` the frozen rubric, judge prompt, and 200 prefixes; judge backends, capability gate, eval runner.
+- `results/` the committed sweep distillate (`summary.csv`): every number in this README, inspectable.
 - `specs/` the frozen spec we're building against.
-- `docs/` why the frozen config is what it is, byte accounting, the emergence-floor estimate, related work.
+- `docs/` why the frozen config is what it is, byte accounting, the emergence-floor estimate, related work, the figures.
 - `web/` Bar'd.
 - `tests/` mirrors `src/` and `eval/`. Offline, no GPU.
 
-`runs/` and `artifacts/data/` are generated and gitignored. Results are never hand-edited: runs log to CSV, and the plotting script reads the CSVs.
+`runs/` and `artifacts/data/` are generated and gitignored. Results are never hand-edited: runs log to CSV, the summarizer reads the runs, and the plotting script reads the summary.
 
 ## what's next
 

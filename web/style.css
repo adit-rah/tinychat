@@ -312,9 +312,8 @@ body.generating .send .ic-quill { display: none; }
 
 .menu-item {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.1rem;
   width: 100%;
   border: 0;
   background: transparent;
@@ -328,9 +327,11 @@ body.generating .send .ic-quill { display: none; }
 
 .menu-item:hover:not(:disabled) { background: rgba(58, 81, 105, 0.08); }
 .menu-item:disabled { color: var(--faded); cursor: not-allowed; }
+.menu-item .row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .menu-item .size { color: var(--faded); font-size: 0.74rem; }
+.menu-item .stats { color: var(--faded); font-size: 0.7rem; }
 .menu-item.selected { color: var(--quill); font-weight: 600; }
-.menu-item.selected::before { content: "✓ "; }
+.menu-item.selected .row > span:first-child::before { content: "✓ "; }
 
 .menu-row { display: block; position: relative; }
 

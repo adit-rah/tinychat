@@ -107,7 +107,11 @@ which the install-all flow streams into the Cache API. HF serves these cross-ori
 A model that fails to download reports a graceful toast and stays greyed out in the picker.
 **Release flow:** push a tier's `model.tpack` to its HF repo, then fill in that model's
 `bytes` / `ppl` / `judge` / `gate` in the manifest. The page preselects the smallest
-available `gate: true` model (falls back to the baked one).
+available `gate: true` model (falls back to the baked one). The sweep numbers are filled
+in (pooled across seeds, greedy decoding, same source as `results/summary.csv`; every
+`gate` is `false` since no config cleared the frozen bar), and the model picker renders
+each entry's coherence and val PPL under its name, so the picker doubles as the results
+table.
 
 **Deviation from the phase-2 doc, on purpose:** discovery is this committed static
 manifest, not an API listing. Swapping later touches only `loadManifest()`.
@@ -158,4 +162,5 @@ manifest, not an API listing. Swapping later touches only `loadManifest()`.
       across reloads, config popover (max tokens / temperature / top-k / seed — the full
       Python sampling surface), profanity + empty + too-long validation toasts,
       mobile-width sane, works from a bare `python3 -m http.server`.
-- [ ] Replace stand-in packs with sweep winners; fill manifest metrics; tag a release.
+- [x] Fill manifest metrics (pooled sweep numbers; picker shows coherence + val PPL per model).
+- [ ] Replace stand-in packs with sweep winners; tag a release.

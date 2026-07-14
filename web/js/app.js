@@ -80,7 +80,16 @@ function renderModelMenu() {
     const size = document.createElement("span");
     size.className = "size";
     size.textContent = fmtMB(e.bytes);
-    item.append(label, size);
+    const row = document.createElement("span");
+    row.className = "row";
+    row.append(label, size);
+    item.append(row);
+    if (e.judge != null && e.ppl != null) {
+      const stats = document.createElement("span");
+      stats.className = "stats";
+      stats.textContent = `coherence ${e.judge.toFixed(2)} / 5 · val ppl ${e.ppl.toFixed(2)}`;
+      item.append(stats);
+    }
     item.addEventListener("click", () => {
       closeMenus();
       if (e.id !== state.currentId) switchModel(e.id);
