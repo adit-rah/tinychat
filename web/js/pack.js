@@ -79,22 +79,29 @@ export async function loadManifest(url = "manifest.json") {
   return res.json();
 }
 
-const cacheAvailable = () => typeof caches !== "undefined";
+// Installed packs are held in memory for this tab only. Nothing is written to the
+// Cache API, and remote packs are fetched with `no-store` so they don't land in the
+// HTTP disk cache either: closing the tab leaves nothing behind on the device.
+const session = new Map(); // url -> ArrayBuffer
 
-export async function isCached(url) {
-  if (!cacheAvailable()) return false;
-  const cache = await caches.open(CACHE_NAME);
-  return (await cache.match(url)) !== undefined;
+// Earlier builds persisted packs in the Cache API. Drop that store on load so anyone
+// who installed back then gets those bytes reclaimed.
+if (typeof caches !== "undefined") caches.delete(CACHE_NAME).catch(() => {});
+
+export function isCached(url) {
+  return session.has(url);
 }
 
-// Fetch a pack with download progress, storing it in the Cache API. Serves from
-// cache when present. onProgress(loadedBytes, totalBytes|null) fires per chunk.
+// Fetch a pack with download progress, keeping it in memory for the session.
+// onProgress(loadedBytes, totalBytes|null) fires per chunk.
 export async function fetchModel(url, onProgress) {
-  const cache = cacheAvailable() ? await caches.open(CACHE_NAME) : null;
-  const hit = cache && (await cache.match(url));
-  if (hit) return hit.arrayBuffer();
+  const hit = session.get(url);
+  if (hit) return hit;
 
-  const res = await fetch(url);
+  // The baked model is a same-origin static asset, so let the browser cache it the way
+  // it caches any other asset. Downloaded models are the ones we refuse to persist.
+  const remote = /^https?:\/\//.test(url);
+  const res = await fetch(url, remote ? { cache: "no-store" } : undefined);
   if (!res.ok) throw new Error(`download failed (${res.status})`);
   const total = Number(res.headers.get("Content-Length")) || null;
   const reader = res.body.getReader();
@@ -113,10 +120,6 @@ export async function fetchModel(url, onProgress) {
     data.set(c, o);
     o += c.length;
   }
-  if (cache) {
-    await cache.put(url, new Response(data.buffer.slice(0), {
-      headers: { "Content-Type": "application/octet-stream" },
-    }));
-  }
+  session.set(url, data.buffer);
   return data.buffer;
 }

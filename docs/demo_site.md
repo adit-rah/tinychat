@@ -102,7 +102,12 @@ coherence score in the sweep); everything else there is gitignored. `web/manifes
 naming (`NanoFable-<params>-<precision>`, tiers tiny/small/medium/large = 1M/6M/16M/28M):
 the baked one by relative URL, the other seven by their HuggingFace repo URL
 (`https://huggingface.co/adrahmana/NanoFable-<params>-<precision>/resolve/main/model.tpack`),
-which the install-all flow streams into the Cache API. HF serves these cross-origin
+which the install-all flow streams into memory. **Installs are session-only, on purpose:**
+packs are held in a `Map` for the life of the tab and never written to the Cache API, and
+remote packs are fetched with `cache: "no-store"` so they stay out of the HTTP disk cache
+too. A visitor who installs the sweep leaves with nothing on their device; the cost is that
+a reload re-downloads whatever they want to use again. (The baked model is exempt: it is a
+same-origin static asset and caches like any other.) HF serves these cross-origin
 (`Access-Control-Allow-Origin: *` on the LFS/Xet redirect target), so no proxy is needed.
 A model that fails to download reports a graceful toast and stays greyed out in the picker.
 **Release flow:** push a tier's `model.tpack` to its HF repo, then fill in that model's
